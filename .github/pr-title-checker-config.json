@@ -1,0 +1,12 @@
+{
+    "LABEL": {
+      "name": "title needs formatting",
+      "color": "EEEEEE"
+    },
+    "CHECKS": {
+      "prefixes": ["fix: ", "feat: ", "refactor: ", "doc: ", "test: ", "perf: "],
+      "regexp": "docs\\(v[0-9]\\): ",
+      "ignoreLabels" : ["dont-check-PRs-with-this-label", "meta"]
+    },
+    "alwaysPassCI": true
+}
