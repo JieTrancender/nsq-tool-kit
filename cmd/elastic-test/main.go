@@ -2,25 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/jehiah/go-strftime"
+	"github.com/nsqio/go-nsq"
 	"github.com/olivere/elastic/v7"
 )
-
-func genIndexName(topic string) string {
-	now := time.Now()
-	return strftime.Format(fmt.Sprintf("%s-%%y.%%m.%%d", topic), now)
-}
-
-type message struct {
-	GamePlatform string `json:"gamePlatform"`
-	NodeName     string `json:"nodeName"`
-	Message      string `json:"message"`
-}
 
 type client struct {
 	client    *elastic.Client
@@ -35,11 +26,9 @@ type client struct {
 
 func newElasticsearchClient(config *Config) (*client, error) {
 	c := &client{
-		addrs:     config.Addrs,
-		indexType: config.IndexType,
-		indexName: config.IndexName,
-		username:  config.Username,
-		password:  config.Password,
+		addrs:    config.Addrs,
+		username: config.Username,
+		password: config.Password,
 	}
 	return c, nil
 }
@@ -67,13 +56,57 @@ func (c *client) Close() error {
 	return nil
 }
 
+type Consumer struct {
+	topic    string
+	consumer *nsq.Consumer
+	done     chan struct{}
+	msgChan  chan *nsq.Message
+}
+
+func (c *Consumer) HandleMessage(m *nsq.Message) error {
+	m.DisableAutoResponse()
+	c.msgChan <- m
+	return nil
+}
+
+func (c *Consumer) indexName() string {
+	now := time.Now()
+	return strftime.Format(fmt.Sprintf("%s-%%y.%%m.%%d", c.topic), now)
+}
+
+func (c *Consumer) Stop() {
+	c.consumer.Stop()
+	<-c.consumer.StopChan
+}
+
+func (c *Consumer) Run(reqChan chan<- *elastic.BulkIndexRequest) {
+	fmt.Println("Consumer Run")
+	for {
+		select {
+		case <-c.done:
+			close(reqChan)
+			return
+		case m := <-c.msgChan:
+			data := make(map[string]interface{})
+			err := json.Unmarshal(m.Body, &data)
+			m.Finish()
+			if err != nil {
+				fmt.Printf("Unmarshal fail: %v", err)
+			} else {
+				req := elastic.NewBulkIndexRequest().
+					Index(c.indexName()).
+					Doc(data)
+				reqChan <- req
+			}
+		}
+	}
+}
+
 func main() {
 	config := &Config{
-		Addrs:     []string{"http://127.0.0.1:9200"},
-		IndexName: "dev_test_v1-%Y.%m.%d",
-		IndexType: "doc",
-		Username:  "root",
-		Password:  "123456",
+		Addrs:    []string{"http://127.0.0.1:9200"},
+		Username: "root",
+		Password: "123456",
 	}
 
 	client, err := newElasticsearchClient(config)
@@ -87,28 +120,42 @@ func main() {
 	}
 	defer client.Close()
 
-	reqChan := make(chan *elastic.BulkIndexRequest, 0)
+	cfg := nsq.NewConfig()
+	cfg.UserAgent = fmt.Sprintf("nsq-tool-kit/%s go-nsq/%s", "0.0.1", nsq.VERSION)
+	cfg.DialTimeout = 6 * time.Second
+	cfg.ReadTimeout = 60 * time.Second
+	cfg.WriteTimeout = 6 * time.Second
+	cfg.MaxInFlight = 200
+
+	topic := "dev_test"
+	nsqConsumer, err := nsq.NewConsumer(topic, "nsq_tool_kit", cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	consumer := &Consumer{
+		topic:    topic,
+		consumer: nsqConsumer,
+		done:     make(chan struct{}),
+		msgChan:  make(chan *nsq.Message),
+	}
+
+	nsqConsumer.AddHandler(consumer)
+	err = nsqConsumer.ConnectToNSQLookupds([]string{"http://127.0.0.1:4161"})
+	if err != nil {
+		panic(err)
+	}
+	defer consumer.Stop()
+
+	reqChan := make(chan *elastic.BulkIndexRequest)
+	go func(consumer *Consumer, reqChan chan<- *elastic.BulkIndexRequest) {
+		consumer.Run(reqChan)
+	}(consumer, reqChan)
+
 	q := make(chan struct{})
-	go genDoc(reqChan)
 	go pubDoc(client, reqChan, q)
 
 	<-q
-}
-
-func genDoc(reqChan chan<- *elastic.BulkIndexRequest) {
-	topic := "dev_test_v1"
-	for i := 1; i <= 10000; i++ {
-		data := &message{
-			GamePlatform: "dev_test",
-			NodeName:     "worldd",
-			Message:      fmt.Sprintf("i am %d", i),
-		}
-		req := elastic.NewBulkIndexRequest().
-			Index(genIndexName(topic)).
-			Doc(data)
-		reqChan <- req
-	}
-	close(reqChan)
 }
 
 func pubDoc(client *client, reqChan <-chan *elastic.BulkIndexRequest, q chan<- struct{}) {
