@@ -2,6 +2,7 @@ package elasticsearch
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -96,14 +97,26 @@ func (c *Client) Run(msgChan <-chan *message.Message, q chan<- struct{}) {
 func (c *Client) Publish(msgList []*message.Message) {
 	bulkReq := elastic.NewBulkService(c.client)
 	defer bulkReq.Reset()
-	log.Infof("len msgList = %d", len(msgList))
+	removeList := make([]int, 0)
 	for i, m := range msgList {
-		log.Infof("publish %d %v", i, m)
-		req := elastic.NewBulkIndexRequest().Index(m.GetTopic()).Doc(m.GetData())
+		data := make(map[string]interface{})
+		err := json.Unmarshal(m.GetData().Body, &data)
+		if err != nil {
+			m.GetData().Requeue(-1)
+			removeList = append(removeList, i)
+			continue
+		}
+		req := elastic.NewBulkIndexRequest().Index(m.GetTopic()).Doc(data)
 		bulkReq = bulkReq.Add(req)
 	}
 
-	bulkResp, err := bulkReq.Do(context.Background())
+	for i := len(removeList) - 1; i >= 0; i-- {
+		log.Infof("remove i = %d", i)
+		msgList = append(msgList[:i], msgList[i+1:]...)
+	}
+
+	// bulkResp, err := bulkReq.Do(context.Background())
+	_, err := bulkReq.Do(context.Background())
 	if err != nil {
 		log.Infof("Do bulk request fail: %v", err)
 		for _, message := range msgList {
@@ -114,5 +127,5 @@ func (c *Client) Publish(msgList []*message.Message) {
 	for _, m := range msgList {
 		m.GetData().Finish()
 	}
-	log.Infof("耗时: %v, 索引数目: %d", bulkResp.Took, len(bulkResp.Items))
+	// log.Infof("耗时: %v, 索引数目: %d", bulkResp.Took, len(bulkResp.Items))
 }
