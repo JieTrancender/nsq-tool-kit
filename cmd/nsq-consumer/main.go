@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/JieTrancender/kbm-iam/internal/apiserver"
+	"github.com/JieTrancender/nsq-tool-kit/internal/nsqconsumer"
 )
 
 func main() {
@@ -15,5 +15,5 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
-	apiserver.NewApp("iam-apiserver").Run()
+	nsqconsumer.NewApp("nsq-consumer").Run()
 }

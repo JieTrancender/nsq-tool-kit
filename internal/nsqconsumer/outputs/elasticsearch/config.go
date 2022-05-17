@@ -1,4 +1,4 @@
-package main
+package elasticsearch
 
 type Config struct {
 	Addrs    []string `config:"addrs" json:"addrs"`

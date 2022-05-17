@@ -4,7 +4,7 @@
 .PHONY: all
 all: build
 
-ROOT_PACKAGE=github.com/JieTrancender/kbm-iam
+ROOT_PACKAGE=github.com/JieTrancender/nsq-tool-kit
 VERSION_PACKAGE=github.com/marmotedu/component-base/pkg/version
 
 include scripts/make-rules/common.mk
