@@ -47,7 +47,7 @@ func (m *manager) Run() error {
 	cfg.DialTimeout = time.Duration(m.cfg.Nsq.DialTimeout) * time.Second
 	cfg.ReadTimeout = time.Duration(m.cfg.Nsq.ReadTimeout) * time.Second
 	cfg.WriteTimeout = time.Duration(m.cfg.Nsq.WriteTimeout) * time.Second
-	cfg.MaxInFlight = m.cfg.Nsq.MaxInFight
+	cfg.MaxInFlight = m.cfg.Nsq.MaxInFlight
 
 	topic := m.cfg.Nsq.Topics[0]
 	nsqConsumer, err := nsq.NewConsumer(topic, "nsq_tool_kit", cfg)

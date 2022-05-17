@@ -11,7 +11,7 @@ type NsqOptions struct {
 	DialTimeout          int      `json:"dial-timeout" mapstructure:"dial-timeout"`
 	ReadTimeout          int      `json:"read-timeout" mapstructure:"read-timeout"`
 	WriteTimeout         int      `json:"write-timeout" mapstructure:"write-timeout"`
-	MaxInFight           int      `json:"max-in-fight" mapstructure:"max-in-fight"`
+	MaxInFlight          int      `json:"max-in-flight" mapstructure:"max-in-flight"`
 }
 
 func NewNsqOptionsOptions() *NsqOptions {
@@ -22,7 +22,7 @@ func NewNsqOptionsOptions() *NsqOptions {
 		DialTimeout:          6,
 		ReadTimeout:          60,
 		WriteTimeout:         5,
-		MaxInFight:           200,
+		MaxInFlight:          200,
 	}
 }
 
@@ -37,5 +37,5 @@ func (o *NsqOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&o.DialTimeout, "nsq.dial-timeout", o.DialTimeout, "Nsq dial timeout in seconds.")
 	fs.IntVar(&o.ReadTimeout, "nsq.read-timeout", o.ReadTimeout, "Nsq read timeout in seconds.")
 	fs.IntVar(&o.WriteTimeout, "nsq.write-timeout", o.WriteTimeout, "Nsq write timeout in seconds.")
-	fs.IntVar(&o.MaxInFight, "nsq.max-in-fight", o.DialTimeout, "Nsq dial timeout in seconds.")
+	fs.IntVar(&o.MaxInFlight, "nsq.max-in-flight", o.MaxInFlight, "Max in flight.")
 }
