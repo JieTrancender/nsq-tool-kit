@@ -1,6 +1,6 @@
 # kbm-iam
 
-This is an iam project form kbm.
+This is a nsq tool kit project, can consume nsq messages and post to others.
 
 
 ## Run Locally
@@ -8,13 +8,13 @@ This is an iam project form kbm.
 Clone the project
 
 ```bash
-  git clone git@github.com:JieTrancender/kbm-iam.git
+  git clone git@github.com:JieTrancender/nsq-tool-kit.git
 ```
 
 Go to the project directory
 
 ```bash
-  cd kbm-iam
+  cd nsq-tool-kit
 ```
 
 Install dependencies
@@ -26,5 +26,5 @@ Install dependencies
 Start the server
 
 ```bash
-  make && ./build/platforms/PLATFORM/ARCH/iam-apiserver -c conf/dev.yaml
+  make && ./build/platforms/PLATFORM/ARCH/nsq-consumer -c conf/nsq-consumer.yaml
 ```
