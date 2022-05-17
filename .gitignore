@@ -17,3 +17,7 @@
 build
 
 coverage.txt
+
+logs/*.log
+conf/dev.yaml
+conf/production.yaml
