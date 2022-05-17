@@ -19,3 +19,4 @@ build
 coverage.txt
 
 logs/*.log
+conf/dev.yaml

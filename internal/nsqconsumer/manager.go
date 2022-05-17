@@ -14,23 +14,21 @@ import (
 )
 
 type manager struct {
+	esConfig *es.Config
 }
 
 func createConsumerManager(cfg *config.Config) (*manager, error) {
-	log.Info("createConsumerManager")
-
-	return &manager{}, nil
+	return &manager{
+		esConfig: &es.Config{
+			Addrs:    cfg.Elasticsearch.Addrs,
+			Username: cfg.Elasticsearch.Username,
+			Password: cfg.Elasticsearch.Password,
+		},
+	}, nil
 }
 
 func (m *manager) Run() error {
-	log.Info("manager run")
-	config := &es.Config{
-		Addrs:    []string{"http://127.0.0.1:9200"},
-		Username: "root",
-		Password: "123456",
-	}
-
-	client, err := es.NewClient(config)
+	client, err := es.NewClient(m.esConfig)
 	if err != nil {
 		log.Errorf("New elasticsearch client fail: %v", err)
 		return err
