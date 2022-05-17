@@ -15,6 +15,7 @@ import (
 
 type manager struct {
 	esConfig *es.Config
+	cfg      *config.Config
 }
 
 func createConsumerManager(cfg *config.Config) (*manager, error) {
@@ -24,6 +25,7 @@ func createConsumerManager(cfg *config.Config) (*manager, error) {
 			Username: cfg.Elasticsearch.Username,
 			Password: cfg.Elasticsearch.Password,
 		},
+		cfg: cfg,
 	}, nil
 }
 
@@ -42,12 +44,12 @@ func (m *manager) Run() error {
 
 	cfg := nsq.NewConfig()
 	cfg.UserAgent = fmt.Sprintf("nsq-tool-kit/%s go-nsq/%s", "0.0.1", nsq.VERSION)
-	cfg.DialTimeout = 6 * time.Second
-	cfg.ReadTimeout = 60 * time.Second
-	cfg.WriteTimeout = 6 * time.Second
-	cfg.MaxInFlight = 200
+	cfg.DialTimeout = time.Duration(m.cfg.Nsq.DialTimeout) * time.Second
+	cfg.ReadTimeout = time.Duration(m.cfg.Nsq.ReadTimeout) * time.Second
+	cfg.WriteTimeout = time.Duration(m.cfg.Nsq.WriteTimeout) * time.Second
+	cfg.MaxInFlight = m.cfg.Nsq.MaxInFight
 
-	topic := "dev_test"
+	topic := m.cfg.Nsq.Topics[0]
 	nsqConsumer, err := nsq.NewConsumer(topic, "nsq_tool_kit", cfg)
 	if err != nil {
 		panic(err)
@@ -61,7 +63,7 @@ func (m *manager) Run() error {
 	}
 
 	nsqConsumer.AddHandler(consumer)
-	err = nsqConsumer.ConnectToNSQLookupds([]string{"http://127.0.0.1:4161"})
+	err = nsqConsumer.ConnectToNSQLookupds(m.cfg.Nsq.LookupdHttpAddresses)
 	if err != nil {
 		panic(err)
 	}
