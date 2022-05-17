@@ -14,3 +14,14 @@ elasticsearch:
     - http://127.0.0.1:9200
   username: root
   password: 123456
+
+nsq:
+  lookupd-http-addresses:
+    - http://127.0.0.1:4161
+  topics:
+    - dev_test
+  channel: nsq_tool_kit
+  dial-timeout: 6   #second
+  read-timeout: 60  #second
+  write-timeout: 6  # second
+  max-in-flight: 200

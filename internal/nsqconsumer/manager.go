@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/marmotedu/iam/pkg/log"
+	"github.com/marmotedu/iam/pkg/shutdown"
+	"github.com/marmotedu/iam/pkg/shutdown/shutdownmanagers/posixsignal"
 	"github.com/nsqio/go-nsq"
 
 	"github.com/JieTrancender/nsq-tool-kit/internal/nsqconsumer/config"
@@ -14,6 +16,7 @@ import (
 )
 
 type manager struct {
+	gs  *shutdown.GracefulShutdown
 	cfg *config.Config
 
 	esConfig *es.Config
@@ -22,9 +25,14 @@ type manager struct {
 	nsqConfig *nsq.Config
 
 	topics map[string]*Consumer
+
+	msgChan chan *message.Message
 }
 
 func createConsumerManager(cfg *config.Config) (*manager, error) {
+	gs := shutdown.New()
+	gs.AddShutdownManager(posixsignal.NewPosixSignalManager())
+
 	nsqConfig := nsq.NewConfig()
 	nsqConfig.UserAgent = fmt.Sprintf("nsq-tool-kit/%s go-nsq/%s", "0.0.1", nsq.VERSION)
 	nsqConfig.DialTimeout = time.Duration(cfg.Nsq.DialTimeout) * time.Second
@@ -32,6 +40,7 @@ func createConsumerManager(cfg *config.Config) (*manager, error) {
 	nsqConfig.WriteTimeout = time.Duration(cfg.Nsq.WriteTimeout) * time.Second
 	nsqConfig.MaxInFlight = cfg.Nsq.MaxInFlight
 	return &manager{
+		gs:  gs,
 		cfg: cfg,
 		esConfig: &es.Config{
 			Addrs:    cfg.Elasticsearch.Addrs,
@@ -82,17 +91,27 @@ func (m *manager) launch() error {
 		m.topics[topic] = consumer
 	}
 
+	stopCh := make(chan struct{})
+	if err := m.gs.Start(); err != nil {
+		log.Fatalf("start shutdown manager failed: %s", err.Error())
+	}
+
 	msgChan := make(chan *message.Message)
+	m.msgChan = msgChan
 	for _, consumer := range m.topics {
 		go func(consumer *Consumer, msgChan chan<- *message.Message) {
 			consumer.Run(msgChan)
 		}(consumer, msgChan)
 	}
 
-	q := make(chan struct{})
-	go m.esClient.Run(msgChan, q)
+	go m.esClient.Run(msgChan)
 
-	<-q
+	m.gs.AddShutdownCallback(shutdown.ShutdownFunc(func(string) error {
+		m.Stop()
+		return nil
+	}))
+
+	<-stopCh
 	return nil
 }
 
@@ -106,10 +125,14 @@ func (m *manager) Run() error {
 }
 
 func (m *manager) Stop() {
+	log.Info("manager Stopping")
 	for _, consumer := range m.topics {
 		consumer.Stop()
 	}
 
+	close(m.msgChan)
+
 	// 最后关闭elasticsearch
 	m.esClient.Close()
+	log.Info("manager stopped")
 }

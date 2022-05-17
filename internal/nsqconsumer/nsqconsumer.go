@@ -2,10 +2,7 @@ package nsqconsumer
 
 import (
 	"encoding/json"
-	"fmt"
-	"time"
 
-	"github.com/jehiah/go-strftime"
 	"github.com/marmotedu/iam/pkg/log"
 	"github.com/nsqio/go-nsq"
 
@@ -23,11 +20,6 @@ func (c *Consumer) HandleMessage(m *nsq.Message) error {
 	m.DisableAutoResponse()
 	c.msgChan <- m
 	return nil
-}
-
-func (c *Consumer) indexName() string {
-	now := time.Now()
-	return strftime.Format(fmt.Sprintf("%s-%%y.%%m.%%d", c.topic), now)
 }
 
 func (c *Consumer) Stop() {

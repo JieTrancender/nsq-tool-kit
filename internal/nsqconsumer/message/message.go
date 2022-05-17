@@ -1,6 +1,12 @@
 package message
 
-import "github.com/nsqio/go-nsq"
+import (
+	"fmt"
+	"time"
+
+	"github.com/jehiah/go-strftime"
+	"github.com/nsqio/go-nsq"
+)
 
 type Message struct {
 	data  *nsq.Message
@@ -17,4 +23,9 @@ func (m *Message) GetData() *nsq.Message {
 
 func (m *Message) GetTopic() string {
 	return m.topic
+}
+
+func (m *Message) GetIndexName() string {
+	now := time.Now()
+	return strftime.Format(fmt.Sprintf("%s-%%y.%%m.%%d", m.topic), now)
 }

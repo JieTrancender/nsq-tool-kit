@@ -3,6 +3,7 @@ package elasticsearch
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"sync"
 	"time"
 
@@ -39,7 +40,13 @@ func (c *Client) Connect() error {
 	defer c.mux.Unlock()
 
 	log.Infof("connect: %v\n", c.addrs)
-	optionFuncs := []elastic.ClientOptionFunc{elastic.SetURL(c.addrs...)}
+	httpClient := &http.Client{}
+	httpClient.Transport = &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 100,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	optionFuncs := []elastic.ClientOptionFunc{elastic.SetURL(c.addrs...), elastic.SetHttpClient(httpClient)}
 	if c.username != "" {
 		optionFuncs = append(optionFuncs, elastic.SetBasicAuth(c.username, c.password))
 	}
@@ -58,7 +65,7 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) Run(msgChan <-chan *message.Message, q chan<- struct{}) {
+func (c *Client) Run(msgChan <-chan *message.Message) {
 	log.Infof("elasticsearch %v publish", c.addrs)
 
 	timeout := time.Second * 1
@@ -80,7 +87,6 @@ func (c *Client) Run(msgChan <-chan *message.Message, q chan<- struct{}) {
 		case m, ok := <-msgChan:
 			if !ok {
 				log.Infof("elasticsearch %v close", c.addrs)
-				q <- struct{}{}
 				return
 			}
 			msgList = append(msgList, m)
@@ -115,10 +121,9 @@ func (c *Client) Publish(msgList []*message.Message) {
 		msgList = append(msgList[:i], msgList[i+1:]...)
 	}
 
-	// bulkResp, err := bulkReq.Do(context.Background())
-	_, err := bulkReq.Do(context.Background())
+	bulkResp, err := bulkReq.Do(context.Background())
 	if err != nil {
-		log.Infof("Do bulk request fail: %v", err)
+		log.Infof("Do bulk request fail: %v %v", err, bulkResp)
 		for _, message := range msgList {
 			message.GetData().Requeue(-1)
 		}
