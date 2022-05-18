@@ -25,3 +25,15 @@ nsq:
   read-timeout: 60  #second
   write-timeout: 6  # second
   max-in-flight: 200
+
+etcd:
+  endpoints:
+    - 127.0.0.1:2379
+  timeout: 6
+  request-time: 6
+  lease-expire: 60
+  Username: root
+  Password: 123456
+  UseTLS: false
+  namespace: /nsq_tool_kit
+  path: dev_test

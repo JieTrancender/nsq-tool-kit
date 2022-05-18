@@ -12,6 +12,7 @@ type Options struct {
 	Log           *log.Options                         `json:"log" mapstructure:"log"`
 	Elasticsearch *genericoptions.ElasticsearchOptions `json:"elasticsearch" mapstructure:"elasticsearch"`
 	Nsq           *genericoptions.NsqOptions           `json:"nsq" mapstructure:"nsq"`
+	Etcd          *genericoptions.EtcdOptions          `json:"etcd" mapstructure:"etcd"`
 }
 
 // NewOptions creates a new Options object with default parameters.
@@ -20,6 +21,7 @@ func NewOptions() *Options {
 		Log:           log.NewOptions(),
 		Elasticsearch: genericoptions.NewElasticsearchOptions(),
 		Nsq:           genericoptions.NewNsqOptionsOptions(),
+		Etcd:          genericoptions.NewEtcdOptions(),
 	}
 
 	return &o
@@ -30,5 +32,6 @@ func (o *Options) Flags() (fss cliflag.NamedFlagSets) {
 	o.Log.AddFlags(fss.FlagSet("logs"))
 	o.Elasticsearch.AddFlags(fss.FlagSet("elasticsearch"))
 	o.Nsq.AddFlags(fss.FlagSet("nsq"))
+	o.Etcd.AddFlags(fss.FlagSet("etcd"))
 	return fss
 }

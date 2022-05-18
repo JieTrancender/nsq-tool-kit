@@ -1,6 +1,8 @@
 package nsqconsumer
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"time"
@@ -13,6 +15,9 @@ import (
 	"github.com/JieTrancender/nsq-tool-kit/internal/nsqconsumer/config"
 	"github.com/JieTrancender/nsq-tool-kit/internal/nsqconsumer/message"
 	es "github.com/JieTrancender/nsq-tool-kit/internal/nsqconsumer/outputs/elasticsearch"
+	"github.com/JieTrancender/nsq-tool-kit/internal/nsqconsumer/store"
+	"github.com/JieTrancender/nsq-tool-kit/internal/nsqconsumer/store/etcd"
+	genericoptions "github.com/JieTrancender/nsq-tool-kit/internal/pkg/options"
 )
 
 type manager struct {
@@ -27,6 +32,8 @@ type manager struct {
 	topics map[string]*Consumer
 
 	msgChan chan *message.Message
+
+	storeIns store.Factory
 }
 
 func createConsumerManager(cfg *config.Config) (*manager, error) {
@@ -35,10 +42,6 @@ func createConsumerManager(cfg *config.Config) (*manager, error) {
 
 	nsqConfig := nsq.NewConfig()
 	nsqConfig.UserAgent = fmt.Sprintf("nsq-tool-kit/%s go-nsq/%s", "0.0.1", nsq.VERSION)
-	nsqConfig.DialTimeout = time.Duration(cfg.Nsq.DialTimeout) * time.Second
-	nsqConfig.ReadTimeout = time.Duration(cfg.Nsq.ReadTimeout) * time.Second
-	nsqConfig.WriteTimeout = time.Duration(cfg.Nsq.WriteTimeout) * time.Second
-	nsqConfig.MaxInFlight = cfg.Nsq.MaxInFlight
 	return &manager{
 		gs:  gs,
 		cfg: cfg,
@@ -65,10 +68,52 @@ func (m *manager) initialize() error {
 	}
 	m.esClient = client
 
+	storeIns, err := etcd.GetEtcdFactoryOr(m.cfg.Etcd, nil)
+	if err != nil {
+		return err
+	}
+	store.SetClient(storeIns)
+
+	o, err := storeIns.Nsqs().Get(context.Background(), m.cfg.Etcd.Path)
+	if err != nil {
+		return err
+	}
+	m.cfg.Nsq = o
+
+	err = storeIns.Watch(context.Background(), "/nsq", m.updateNsqConfig)
+	if err != nil {
+		return err
+	}
+	m.storeIns = storeIns
+
 	return nil
 }
 
-func (m *manager) launch() error {
+func (m *manager) updateNsqConfig(ctx context.Context, key, oldvalue, value []byte) {
+	log.Infof("manager update nsq conifg", string(key))
+	log.Infof("%s %s", string(key), m.storeIns.Nsqs().GetKey(m.cfg.Etcd.Path))
+	if string(key) == m.storeIns.Nsqs().GetKey(m.cfg.Etcd.Path) {
+		var o genericoptions.NsqOptions
+		if err := json.Unmarshal(value, &o); err != nil {
+			log.Errorf("failed to unmarshal to nsq options struct, data: %v", string(value))
+			return
+		}
+		m.cfg.Nsq = &o
+		m.updateTopics()
+	}
+}
+
+func (m *manager) updateTopics() {
+	// close cur consumers
+	for _, consumer := range m.topics {
+		consumer.Stop()
+	}
+
+	m.nsqConfig.DialTimeout = time.Duration(m.cfg.Nsq.DialTimeout) * time.Second
+	m.nsqConfig.ReadTimeout = time.Duration(m.cfg.Nsq.ReadTimeout) * time.Second
+	m.nsqConfig.WriteTimeout = time.Duration(m.cfg.Nsq.WriteTimeout) * time.Second
+	m.nsqConfig.MaxInFlight = m.cfg.Nsq.MaxInFlight
+
 	for _, topic := range m.cfg.Nsq.Topics {
 		log.Infof("launch topic %s", topic)
 		nsqConsumer, err := nsq.NewConsumer(topic, m.cfg.Nsq.Channel, m.nsqConfig)
@@ -90,6 +135,10 @@ func (m *manager) launch() error {
 		}
 		m.topics[topic] = consumer
 	}
+}
+
+func (m *manager) launch() error {
+	m.updateTopics()
 
 	stopCh := make(chan struct{})
 	if err := m.gs.Start(); err != nil {

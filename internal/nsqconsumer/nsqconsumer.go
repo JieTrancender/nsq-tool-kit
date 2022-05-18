@@ -25,6 +25,8 @@ func (c *Consumer) HandleMessage(m *nsq.Message) error {
 func (c *Consumer) Stop() {
 	c.consumer.Stop()
 	<-c.consumer.StopChan
+
+	close(c.done)
 }
 
 func (c *Consumer) Run(msgChan chan<- *message.Message) {
@@ -32,6 +34,7 @@ func (c *Consumer) Run(msgChan chan<- *message.Message) {
 	for {
 		select {
 		case <-c.done:
+			log.Infof("Consumer %s done", c.topic)
 			return
 		case m := <-c.msgChan:
 			data := make(map[string]interface{})
