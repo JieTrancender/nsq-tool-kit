@@ -121,6 +121,7 @@ func (m *manager) updateTopics() {
 			log.Errorf("nsq.NewConsumer fail: %v", err)
 			continue
 		}
+		nsqConsumer.SetLogger(log.StdInfoLogger(), nsq.LogLevelInfo)
 		consumer := &Consumer{
 			topic:    topic,
 			consumer: nsqConsumer,
