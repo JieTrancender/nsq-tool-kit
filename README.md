@@ -47,5 +47,12 @@ Configure Etcd
 Start the server
 
 ```bash
-  make && ./build/platforms/PLATFORM/ARCH/nsq-consumer -c conf/nsq-consumer.yaml
+  make
+  ./build/platforms/PLATFORM/ARCH/nsq-consumer -c conf/nsq-consumer.yaml
+```
+
+## Filebeat
+Modify paths and output.nsq columns in examples/filebeat.yml to your own special info.
+```bash
+  ./build/platforms/PLATFORM/ARCH/filebeat -c conf/filebeat.yaml
 ```

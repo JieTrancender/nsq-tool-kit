@@ -15,7 +15,7 @@ include scripts/make-rules/golang.mk
 build:
 	@$(MAKE) go.build
 
-APPS = kbm-iam
+APPS = nsq-consumer filebeat
 
 $(BUILDDIR)/%:
 	@mkdir -p $(dir $@)

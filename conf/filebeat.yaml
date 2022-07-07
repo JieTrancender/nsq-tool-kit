@@ -1,0 +1,32 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - ./logs/*.log
+  fields:
+    platform: 'dev_test'
+    nodeName: 'nsq-consumer'
+    machineName: 'default-machine-name'
+  fields_under_root: true
+  # 删除文件后关掉这个文件的handle
+  force_close_files: true
+  # 感知指定目录下面文件更新周期(比如新增文件)，默认10s
+  scan_frequency: 10s
+  max_bytes: 262144
+  # 从文件尾开始监控文件新增内容，而不是从文件开始处重新发送所有内容
+  tail_files: true
+  # nsq-consumer日志格式
+  multiline.pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}'
+  # 将不符合正则的行与前一个符合正则的行合并
+  multiline.max_lines: 20
+  multiline.negate: true
+  multiline.match: after
+
+  # debug 信息过滤
+  exclude_lines: ['[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} DEBUG']
+
+output.nsq:
+  nsqd: '127.0.0.1:4151'
+  topic: 'dev_test'
+  filter_keys: []
+  ignore_keys: []
