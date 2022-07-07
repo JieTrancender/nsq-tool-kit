@@ -7,7 +7,10 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - env:
+  - main: ./cmd/nsq_consumer/main.go
+    id: "nsq_tool_kit"
+    binary: nsq_tool_kit
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
