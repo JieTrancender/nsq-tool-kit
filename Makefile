@@ -15,7 +15,7 @@ include scripts/make-rules/golang.mk
 build:
 	@$(MAKE) go.build
 
-APPS = kbm-iam
+APPS = nsq-tool-kit
 
 $(BUILDDIR)/%:
 	@mkdir -p $(dir $@)
