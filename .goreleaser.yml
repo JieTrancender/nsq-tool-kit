@@ -3,14 +3,11 @@
 before:
   hooks:
     # You may remove this if you don't use go modules.
-    - go mod tidy
+    - go mod download
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - main: ./cmd/nsq_consumer/main.go
-    id: "nsq_tool_kit"
-    binary: nsq_tool_kit
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -23,18 +20,6 @@ archives:
       windows: Windows
       386: i386
       amd64: x86_64
-  - files:
-    - licence*
-    - LICENCE*
-    - license*
-    - LICENSE*
-    - readme*
-    - README*
-    - changelog*
-    - CHANGELOG*
-    - templates/**/*
-    - conf/*.yaml
-  - name_template: "nsq_tool_kit_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 checksum:
   name_template: 'checksums.txt'
 snapshot:
