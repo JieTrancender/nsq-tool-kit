@@ -7,7 +7,10 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - env:
+  -
+    id: "nsq-tool-kit"
+    main: ./cmd/nsq-consumer/main.go
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -20,6 +23,18 @@ archives:
       windows: Windows
       386: i386
       amd64: x86_64
+    wrap_in_directory: true
+    files:
+      - licence*
+      - LICENCE*
+      - license*
+      - LICENSE*
+      - readme*
+      - README*
+      - changelog*
+      - CHANGELOG*
+      - templates/**/*
+      - conf/*.yaml
 checksum:
   name_template: 'checksums.txt'
 snapshot:
