@@ -80,7 +80,7 @@ func (m *manager) initialize() error {
 	}
 	m.cfg.Nsq = o
 
-	err = storeIns.Watch(context.Background(), "/nsq", m.updateNsqConfig)
+	err = storeIns.Watch(context.Background(), "", m.updateNsqConfig)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (m *manager) initialize() error {
 }
 
 func (m *manager) updateNsqConfig(ctx context.Context, key, oldvalue, value []byte) {
-	log.Infof("manager update nsq conifg", string(key))
+	log.Infof("manager update nsq conifg %s", string(key))
 	log.Infof("%s %s", string(key), m.storeIns.Nsqs().GetKey(m.cfg.Etcd.Path))
 	if string(key) == m.storeIns.Nsqs().GetKey(m.cfg.Etcd.Path) {
 		var o genericoptions.NsqOptions
@@ -104,17 +104,15 @@ func (m *manager) updateNsqConfig(ctx context.Context, key, oldvalue, value []by
 }
 
 func (m *manager) updateTopics() {
-	// close cur consumers
-	for _, consumer := range m.topics {
-		consumer.Stop()
-	}
-
 	m.nsqConfig.DialTimeout = time.Duration(m.cfg.Nsq.DialTimeout) * time.Second
 	m.nsqConfig.ReadTimeout = time.Duration(m.cfg.Nsq.ReadTimeout) * time.Second
 	m.nsqConfig.WriteTimeout = time.Duration(m.cfg.Nsq.WriteTimeout) * time.Second
 	m.nsqConfig.MaxInFlight = m.cfg.Nsq.MaxInFlight
 
 	for _, topic := range m.cfg.Nsq.Topics {
+		if _, ok := m.topics[topic]; ok {
+			continue
+		}
 		log.Infof("launch topic %s", topic)
 		nsqConsumer, err := nsq.NewConsumer(topic, m.cfg.Nsq.Channel, m.nsqConfig)
 		if err != nil {
@@ -135,26 +133,24 @@ func (m *manager) updateTopics() {
 			continue
 		}
 		m.topics[topic] = consumer
+
+		go func(consumer *Consumer, msgChan chan<- *message.Message) {
+			consumer.Run(msgChan)
+		}(consumer, m.msgChan)
 	}
 }
 
 func (m *manager) launch() error {
+	msgChan := make(chan *message.Message)
+	m.msgChan = msgChan
+	go m.esClient.Run(msgChan)
+
 	m.updateTopics()
 
 	stopCh := make(chan struct{})
 	if err := m.gs.Start(); err != nil {
 		log.Fatalf("start shutdown manager failed: %s", err.Error())
 	}
-
-	msgChan := make(chan *message.Message)
-	m.msgChan = msgChan
-	for _, consumer := range m.topics {
-		go func(consumer *Consumer, msgChan chan<- *message.Message) {
-			consumer.Run(msgChan)
-		}(consumer, msgChan)
-	}
-
-	go m.esClient.Run(msgChan)
 
 	m.gs.AddShutdownCallback(shutdown.ShutdownFunc(func(string) error {
 		m.Stop()

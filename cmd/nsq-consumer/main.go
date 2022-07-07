@@ -15,5 +15,5 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
-	nsqconsumer.NewApp("nsq-consumer").Run()
+	nsqconsumer.NewApp("nsq-tool-kit").Run()
 }

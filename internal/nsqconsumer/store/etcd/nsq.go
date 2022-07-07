@@ -18,7 +18,7 @@ func newNsqs(ds *datastore) *nsqs {
 	return &nsqs{ds: ds}
 }
 
-var keyNsq = "/nsq/%v"
+var keyNsq = "/%v"
 
 func (n *nsqs) GetKey(name string) string {
 	return fmt.Sprintf(keyNsq, name)
