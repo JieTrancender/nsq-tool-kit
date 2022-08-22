@@ -104,7 +104,7 @@ func (c *Client) Run(msgChan <-chan *message.Message) {
 
 func (c *Client) indexName(topic string) string {
 	now := time.Now()
-	return strftime.Format(fmt.Sprintf("%s-%%&.%%m.%%d", topic), now)
+	return strftime.Format(fmt.Sprintf("%s-%%Y.%%m.%%d", topic), now)
 }
 
 func (c *Client) Publish(msgList []*message.Message) {
